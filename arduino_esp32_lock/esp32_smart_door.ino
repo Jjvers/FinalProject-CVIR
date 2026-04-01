@@ -37,7 +37,7 @@ void beepBuzzer(int times) {
 
 // OPEN
 // Overloaded to accept student Name and Mood to display on LCD
-void openDoor(String studentName = "Web Dashboard", String mood = "") {
+void openDoor(String studentName = "Web Dashboard", String mood = "", String studentId = "") {
   if (isEmergency) return;
 
   isDoorOpen = true;
@@ -48,19 +48,33 @@ void openDoor(String studentName = "Web Dashboard", String mood = "") {
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_GREEN, HIGH);
 
+  // FRAME 1: Access Granted & ID
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Access Granted!");
   
-  // Create bottom text like "Johana - Happy"
-  String bottomText = studentName;
-  if(mood != "") bottomText += " - " + mood;
-  if(bottomText.length() > 16) bottomText = bottomText.substring(0, 16);
-  
   lcd.setCursor(0, 1);
-  lcd.print(bottomText);
+  if (studentId != "") {
+      lcd.print("ID: " + studentId);
+  } else {
+      lcd.print("Welcome!");
+  }
 
   beepBuzzer(2);
+  delay(1500); // Hold frame 1 for 1.5 seconds
+
+  // FRAME 2: Name & Mood
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if (studentName.length() > 16) studentName = studentName.substring(0, 16);
+  lcd.print(studentName);
+
+  lcd.setCursor(0, 1);
+  if (mood != "") {
+      String mStr = "Mood: " + mood;
+      if (mStr.length() > 16) mStr = mStr.substring(0, 16);
+      lcd.print(mStr);
+  }
 }
 
 // CLOSE
@@ -204,7 +218,7 @@ void loop() {
     cmd.trim();
     
     // Command formats expected from python:
-    // "open|Johana|Happy" 
+    // "open|Johana|Happy|10113" 
     // "lock|No face detected"
     // "lock"
     
@@ -217,8 +231,16 @@ void loop() {
           int secondDivider = remainder.indexOf('|');
           if (secondDivider != -1) {
               String sName = remainder.substring(0, secondDivider);
-              String sMood = remainder.substring(secondDivider + 1);
-              openDoor(sName, sMood); 
+              String rem2 = remainder.substring(secondDivider + 1);
+              
+              int thirdDivider = rem2.indexOf('|');
+              if (thirdDivider != -1) {
+                  String sMood = rem2.substring(0, thirdDivider);
+                  String sId = rem2.substring(thirdDivider + 1);
+                  openDoor(sName, sMood, sId); 
+              } else {
+                  openDoor(sName, rem2); 
+              }
           } else {
               openDoor(remainder); 
           }

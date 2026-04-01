@@ -78,7 +78,7 @@ class DoorController:
 
     # ─── Door Control ───────────────────────────────────────────
 
-    def open_door(self, reason="", student_name=""):
+    def open_door(self, reason="", student_name="", student_id="", mood=""):
         """
         Open the door (unlock).
         
@@ -97,13 +97,9 @@ class DoorController:
         # Send Serial command to ESP32
         if self.serial_conn:
             try:
-                # Based on user request, sending exactly 'open'
-                # Or 'open|Name|Mood' for LCD support
                 cmd = f"open\n"
                 if student_name:
-                    # Guessing mood is Happy for now, as it's passed differently in original code
-                    # But doing simple open per user request "open lock aja ganti code nya"
-                    cmd = f"open|{student_name}|\n" 
+                    cmd = f"open|{student_name}|{mood}|{student_id}\n" 
                 self.serial_conn.write(cmd.encode('utf-8'))
             except Exception as e:
                 self._log(f"Serial Write Error: {e}")

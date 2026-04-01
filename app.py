@@ -313,6 +313,8 @@ def api_scan():
                 door_controller.open_door(
                     reason=f"Face matched ({student_class})",
                     student_name=student_name,
+                    student_id=matched_student_id,
+                    mood=mood_label
                 )
                 add_access_log(
                     student_row["id"], student_name, student_class,

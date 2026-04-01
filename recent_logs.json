@@ -1,0 +1,52 @@
+[
+  {
+    "id": 6,
+    "student_id": null,
+    "student_name": "Unknown",
+    "class_name": "AI1",
+    "detected_mood": "\ud83d\ude10 neutral",
+    "status": "Denied",
+    "door_action": "Locked",
+    "timestamp": "2026-03-31 04:42:24"
+  },
+  {
+    "id": 5,
+    "student_id": null,
+    "student_name": "Unknown",
+    "class_name": "AI1",
+    "detected_mood": "\ud83d\ude10 neutral",
+    "status": "Denied",
+    "door_action": "Locked",
+    "timestamp": "2026-03-31 04:42:06"
+  },
+  {
+    "id": 4,
+    "student_id": null,
+    "student_name": "Unknown",
+    "class_name": "AI1",
+    "detected_mood": "\ud83d\ude10 neutral",
+    "status": "Denied",
+    "door_action": "Locked",
+    "timestamp": "2026-03-31 04:41:56"
+  },
+  {
+    "id": 3,
+    "student_id": null,
+    "student_name": "Unknown",
+    "class_name": "AI1",
+    "detected_mood": "\ud83d\ude10 neutral",
+    "status": "Denied",
+    "door_action": "Locked",
+    "timestamp": "2026-03-31 04:41:27"
+  },
+  {
+    "id": 2,
+    "student_id": null,
+    "student_name": "Unknown",
+    "class_name": "AI1",
+    "detected_mood": "\ud83d\ude10 neutral",
+    "status": "Denied",
+    "door_action": "Locked",
+    "timestamp": "2026-03-31 04:15:53"
+  }
+]

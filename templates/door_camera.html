@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}Door Camera - Smart Door Lock{% endblock %}
+
+{% block body %}
+<div class="door-page">
+    <header class="door-header">
+        <div style="display:flex;align-items:center;gap:16px;">
+            <div class="logo-icon" style="width:40px;height:40px;font-size:18px;">🚪</div>
+            <div>
+                <h2 style="font-size:18px;font-weight:700;">Smart Door — Face Scan</h2>
+                <p style="font-size:12px;color:var(--text-muted);">Stand in front of the camera to verify identity</p>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div class="status-indicator" id="doorStatusIndicator">
+                <span class="status-dot" id="doorDot"></span>
+                <span id="doorStateText">🔒 Door Locked</span>
+            </div>
+            <select id="targetClass" class="form-select" style="width:200px;">
+                <option value="">-- Target Class --</option>
+                <option value="auto" selected>✨ Auto-Schedule (Detect via Time)</option>
+                {% for cls in classes %}
+                <option value="{{ cls.id }}" data-name="{{ cls.class_name }}">{{ cls.class_name }}</option>
+                {% endfor %}
+            </select>
+            <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
+        </div>
+    </header>
+
+    <div class="door-content">
+        <!-- Camera Feed -->
+        <div>
+            <div class="camera-container" id="doorCameraBox">
+                <video id="doorVideo" autoplay playsinline></video>
+                <canvas id="doorCanvas" style="display:none;"></canvas>
+                <div class="camera-overlay">
+                    <div class="scan-line"></div>
+                </div>
+                <div class="camera-corners"></div>
+                <div class="camera-bottom-corners"></div>
+                <div class="camera-status">
+                    <span class="rec-dot"></span>
+                    <span id="camStatusLabel">LIVE</span>
+                </div>
+            </div>
+
+            <div style="margin-top:16px; display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
+                <button class="btn btn-primary" id="startDoorCam" onclick="startDoorCamera()">
+                    📷 Start Camera
+                </button>
+                <button class="btn btn-success" id="scanBtn" onclick="scanFace()" style="display:none;">
+                    🔍 Scan Now
+                </button>
+                <label style="display:none; align-items:center; gap:6px; font-size:13px; color:var(--text-secondary); cursor:pointer;" id="autoScanLabel">
+                    <input type="checkbox" id="autoScanToggle" onchange="toggleAutoScan()" checked>
+                    Auto-Scan every <select id="scanInterval" class="form-select" style="width:80px; padding:4px 8px; font-size:12px; display:inline-block;" onchange="restartAutoScan()">
+                        <option value="1" selected>1s (Fast)</option>
+                        <option value="3">3s</option>
+                        <option value="5">5s</option>
+                        <option value="10">10s</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Model Info -->
+            <div class="card mt-2" style="font-size:12px;">
+                <div class="card-header" style="padding:12px 16px;">
+                    <h3 style="font-size:13px;">🧠 Model Info</h3>
+                </div>
+                <div class="card-body" style="padding:12px 16px; color:var(--text-muted); line-height:1.8;">
+                    <strong>Face Recognition:</strong> VGG-Face (Transfer Learning, 2.6M faces)<br>
+                    <strong>Emotion Detection:</strong> <span id="emotionModelInfo">Loading...</span><br>
+                    <strong>Face Detector:</strong> OpenCV Haar Cascade<br>
+                    <strong>Camera:</strong> Webcam (live feed from laptop)<br>
+                    <strong>IoT Device:</strong> Arduino/RPi (MQ-2 + Servo + Buzzer + LED, via Serial)
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Results Panel -->
+        <div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3>🔍 Scan Result</h3>
+                    <span class="badge badge-info" id="scanCountBadge">0 scans</span>
+                </div>
+                <div class="card-body">
+                    <div id="resultPanel" class="detection-result">
+                        <div class="result-icon">🔐</div>
+                        <div class="result-name">Awaiting Scan...</div>
+                        <div class="result-detail">Select a target class, start camera, and auto-scan will begin</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emotion Breakdown -->
+            <div class="card mb-3" id="emotionCard" style="display:none;">
+                <div class="card-header">
+                    <h3>🧠 Emotion Analysis</h3>
+                </div>
+                <div class="card-body" id="emotionBars"></div>
+            </div>
+
+            <!-- Recent door logs -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 Recent Door Logs</h3>
+                </div>
+                <div class="card-body" style="padding:0; max-height:300px; overflow-y:auto;">
+                    <table class="data-table" id="doorLogsTable">
+                        <thead>
+                            <tr><th>Time</th><th>Name</th><th>Mood</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="doorLogsTbody">
+                            <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No scans yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Overlay Notification -->
+<div id="successOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(16, 185, 129, 0.95); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:center; color:white; animation:overlayFadeIn 0.3s ease;">
+    <div style="font-size:100px; margin-bottom:20px; animation:iconBounce 1.5s ease infinite;">✅</div>
+    <h1 style="font-size:48px; margin-bottom:16px; font-weight:700; text-align:center;">Successfully Opened!</h1>
+    <h2 id="successOverlayName" style="font-size:28px; font-weight:400; margin-bottom:20px; text-align:center;">Jane Doe</h2>
+    <div id="successOverlayMood" style="font-size:24px; background:rgba(255,255,255,0.2); padding:12px 30px; border-radius:40px; font-weight:600;">😊 Happy</div>
+</div>
+
+<style>
+@keyframes overlayFadeIn { from{opacity:0;} to{opacity:1;} }
+@keyframes iconBounce { 0%, 100% {transform:translateY(0);} 50% {transform:translateY(-20px);} }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let doorStream = null;
+let autoScanTimer = null;
+let isScanning = false;
+let unlockTimeout = null;
+let scanCount = 0;
+
+function startDoorCamera() {
+    const video = document.getElementById('doorVideo');
+    const startBtn = document.getElementById('startDoorCam');
+    const scanBtn = document.getElementById('scanBtn');
+    const autoLabel = document.getElementById('autoScanLabel');
+
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
+        .then(stream => {
+            doorStream = stream;
+            video.srcObject = stream;
+            startBtn.style.display = 'none';
+            scanBtn.style.display = 'inline-flex';
+            autoLabel.style.display = 'flex';
+
+            // Start auto-scan if checkbox is checked
+            if (document.getElementById('autoScanToggle').checked) {
+                startAutoScan();
+            }
+        })
+        .catch(err => alert('Camera error: ' + err.message));
+}
+
+// ─── Auto-Scan Logic ───────────────────────────────────────────
+
+function toggleAutoScan() {
+    if (document.getElementById('autoScanToggle').checked) {
+        startAutoScan();
+    } else {
+        stopAutoScan();
+    }
+}
+
+function startAutoScan() {
+    stopAutoScan();
+    const intervalSec = parseInt(document.getElementById('scanInterval').value) || 5;
+    document.getElementById('camStatusLabel').textContent = `AUTO-SCAN (${intervalSec}s)`;
+    autoScanTimer = setInterval(() => {
+        if (!isScanning) {
+            scanFace();
+        }
+    }, intervalSec * 1000);
+}
+
+function stopAutoScan() {
+    if (autoScanTimer) {
+        clearInterval(autoScanTimer);
+        autoScanTimer = null;
+    }
+    document.getElementById('camStatusLabel').textContent = 'LIVE';
+}
+
+function restartAutoScan() {
+    if (document.getElementById('autoScanToggle').checked && doorStream) {
+        startAutoScan();
+    }
+}
+
+// ─── Scan Face ─────────────────────────────────────────────────
+
+function scanFace() {
+    const targetClassSelect = document.getElementById('targetClass');
+    const targetClassId = targetClassSelect.value;
+    const targetClassName = targetClassSelect.options[targetClassSelect.selectedIndex]?.dataset?.name || '';
+
+    if (!targetClassId) {
+        document.getElementById('resultPanel').innerHTML = `
+            <div class="result-icon">⚠️</div>
+            <div class="result-name">Select Target Class</div>
+            <div class="result-detail">Please select the target class or auto-schedule to begin scanning.</div>
+        `;
+        return;
+    }
+
+    if (isScanning) return;
+    isScanning = true;
+
+    const video = document.getElementById('doorVideo');
+    const canvas = document.getElementById('doorCanvas');
+    
+    // Use native video resolution for accurate face recognition
+    const targetWidth = video.videoWidth || 640;
+    const targetHeight = video.videoHeight || 480;
+
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, targetWidth, targetHeight);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+    const resultPanel = document.getElementById('resultPanel');
+    
+    // Only update UI if we are in the initial state, to prevent flickering during fast auto-scans
+    if (document.getElementById('scanCountBadge').textContent === '0 scans') {
+        resultPanel.className = 'detection-result';
+        resultPanel.innerHTML = `
+            <div class="result-icon" style="animation: pulse-dot 1s ease-in-out infinite;">⏳</div>
+            <div class="result-name">Scanning...</div>
+            <div class="result-detail">AI is analyzing face & emotion...</div>
+        `;
+    }
+
+    fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            image: dataUrl,
+            target_class_id: targetClassId,
+            target_class_name: targetClassName
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        scanCount++;
+        document.getElementById('scanCountBadge').textContent = `${scanCount} scans`;
+        showResult(data);
+        if (data.emotions) {
+            showEmotions(data.emotions);
+        }
+        addDoorLog(data);
+        isScanning = false;
+    })
+    .catch(err => {
+        resultPanel.innerHTML = `
+            <div class="result-icon">❌</div>
+            <div class="result-name">Error</div>
+            <div class="result-detail">${err.message}</div>
+        `;
+        isScanning = false;
+    });
+}
+
+function showResult(data) {
+    const panel = document.getElementById('resultPanel');
+    const doorState = document.getElementById('doorStateText');
+    const doorDot = document.getElementById('doorDot');
+    const overlay = document.getElementById('successOverlay');
+
+    if (data.access === 'granted') {
+        panel.className = 'detection-result success';
+        panel.innerHTML = `
+            <div class="result-icon">✅</div>
+            <div class="result-name">${data.student_name}</div>
+            <div class="result-detail">
+                ID: ${data.student_id} • Class: ${data.class_name}<br>
+                Mood: ${data.mood_emoji} ${data.mood} (${data.mood_label})
+            </div>
+        `;
+        doorState.textContent = '🔓 Door Unlocked';
+        doorDot.className = 'status-dot';
+        doorDot.style.background = 'var(--accent-green)';
+        
+        // Show Big Success Overlay
+        document.getElementById('successOverlayName').textContent = data.student_name + " • " + data.class_name;
+        document.getElementById('successOverlayMood').textContent = data.mood_emoji + " Mood: " + data.mood_label;
+        overlay.style.display = 'flex';
+        
+        if (unlockTimeout) clearTimeout(unlockTimeout);
+        unlockTimeout = setTimeout(() => {
+            doorState.textContent = '🔒 Door Locked';
+            doorDot.style.background = '';
+            overlay.style.display = 'none';
+        }, 5000);
+    } else {
+        panel.className = 'detection-result denied';
+        let reason = data.reason || 'Face not recognized or class mismatch';
+        if (data.error) reason = "System Error: " + data.error; 
+        panel.innerHTML = `
+            <div class="result-icon">🚫</div>
+            <div class="result-name">Access Denied</div>
+            <div class="result-detail">${reason}</div>
+        `;
+        doorState.textContent = '🔒 Door Locked';
+        doorDot.style.background = '';
+        
+        // Hide overlay aggressively if explicitly denied so it doesn't stay up falsely during movement
+        overlay.style.display = 'none';
+        if (unlockTimeout) {
+            clearTimeout(unlockTimeout);
+            unlockTimeout = null;
+        }
+    }
+}
+
+function showEmotions(emotions) {
+    const card = document.getElementById('emotionCard');
+    const barsDiv = document.getElementById('emotionBars');
+    card.style.display = 'block';
+
+    const colors = {
+        happy: '#10b981', sad: '#3b82f6', angry: '#ef4444',
+        surprise: '#f59e0b', fear: '#8b5cf6', disgust: '#ec4899', neutral: '#64748b'
+    };
+
+    let html = '';
+    // Sort by value descending
+    const sorted = Object.entries(emotions).sort((a, b) => b[1] - a[1]);
+    for (const [name, value] of sorted) {
+        const pct = Math.round(value * 100) / 100;
+        const color = colors[name] || '#64748b';
+        html += `
+        <div class="emotion-bar">
+            <span class="emotion-name">${name}</span>
+            <div class="emotion-fill-wrapper">
+                <div class="emotion-fill" style="width:${pct}%; background:${color};"></div>
+            </div>
+            <span class="emotion-pct">${pct.toFixed(1)}%</span>
+        </div>`;
+    }
+    barsDiv.innerHTML = html;
+}
+
+function addDoorLog(data) {
+    const tbody = document.getElementById('doorLogsTbody');
+    if (tbody.querySelector('td[colspan]')) {
+        tbody.innerHTML = '';
+    }
+    const now = new Date().toLocaleTimeString();
+    const statusBadge = data.access === 'granted'
+        ? '<span class="badge badge-success">✓</span>'
+        : '<span class="badge badge-danger">✗</span>';
+    const row = document.createElement('tr');
+    row.innerHTML = `<td style="font-size:12px;">${now}</td><td>${data.student_name || 'Unknown'}</td><td>${data.mood_emoji || ''} ${data.mood || '-'}</td><td>${statusBadge}</td>`;
+    tbody.prepend(row);
+}
+
+// ─── Load model info on page load ──────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/model_info')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('emotionModelInfo').textContent = data.emotion_detection || 'DeepFace Built-in';
+        })
+        .catch(() => {});
+        
+    // Auto-start camera automatically when page loads
+    setTimeout(() => {
+        startDoorCamera();
+    }, 500);
+});
+</script>
+{% endblock %}

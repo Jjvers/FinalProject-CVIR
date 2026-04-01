@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Smart Door Lock{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">🔐</div>
+                <div class="logo-text">
+                    <h1>SmartDoor</h1>
+                    <span>Admin Panel</span>
+                </div>
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            <a href="/dashboard" class="nav-link active">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <a href="/door" class="nav-link">
+                <span class="nav-icon">🚪</span> Door Camera
+            </a>
+
+            <div class="nav-section-label">Management</div>
+            <a href="/students" class="nav-link">
+                <span class="nav-icon">👤</span> Students
+            </a>
+            <a href="/add_student" class="nav-link">
+                <span class="nav-icon">➕</span> Register Student
+            </a>
+            <a href="/classes" class="nav-link">
+                <span class="nav-icon">🏫</span> Classes
+            </a>
+
+            <div class="nav-section-label">System</div>
+            <a href="/logs" class="nav-link">
+                <span class="nav-icon">📋</span> Access Logs
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/logout" class="nav-link">
+                <span class="nav-icon">🚪</span> Logout
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-title">
+                <h2>Dashboard Overview</h2>
+                <p>Monitor your smart door lock system</p>
+            </div>
+            <div class="topbar-actions">
+                <div class="status-indicator" id="doorStatus">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="doorStatusText">Door: Locked</span>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="triggerFireAlarm()">
+                    🔥 Fire Alert
+                </button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Students</span>
+                        <div class="stat-icon">👤</div>
+                    </div>
+                    <div class="stat-value">{{ total_students }}</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-header">
+                        <span class="stat-label">Total Classes</span>
+                        <div class="stat-icon">🏫</div>
+                    </div>
+                    <div class="stat-value">{{ total_classes }}</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-header">
+                        <span class="stat-label">Today's Access</span>
+                        <div class="stat-icon">🚪</div>
+                    </div>
+                    <div class="stat-value">{{ today_access }}</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-header">
+                        <span class="stat-label">Active Alerts</span>
+                        <div class="stat-icon">🚨</div>
+                    </div>
+                    <div class="stat-value">{{ active_alerts }}</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Recent Logs -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 Recent Access Logs</h3>
+                        <a href="/logs" class="btn btn-ghost btn-sm">View All</a>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        {% if recent_logs %}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Class</th>
+                                    <th>Mood</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs[:8] %}
+                                <tr>
+                                    <td>{{ log.student_name or 'Unknown' }}</td>
+                                    <td>{{ log.class_name or '-' }}</td>
+                                    <td>{{ log.detected_mood or '-' }}</td>
+                                    <td>
+                                        {% if log.status == 'Granted' %}
+                                        <span class="badge badge-success">✓ Granted</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">✗ Denied</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="font-size:12px; color:var(--text-muted);">{{ log.timestamp }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">📋</div>
+                            <h4>No logs yet</h4>
+                            <p>Access logs will appear here when students use the door</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Mood Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>😊 Mood Summary Today</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="mood-grid">
+                            <div class="mood-item">
+                                <span class="mood-emoji">😊</span>
+                                <span class="mood-label">Happy</span>
+                                <span class="mood-count">{{ mood_counts.get('happy', 0) }}</span>
+                            </div>
+                            <div class="mood-item">
+                                <span class="mood-emoji">😢</span>
+                                <span class="mood-label">Sad</span>
+                                <span class="mood-count">{{ mood_counts.get('sad', 0) }}</span>
+                            </div>
+                            <div class="mood-item">
+                                <span class="mood-emoji">😠</span>
+                                <span class="mood-label">Angry</span>
+                                <span class="mood-count">{{ mood_counts.get('angry', 0) }}</span>
+                            </div>
+                            <div class="mood-item">
+                                <span class="mood-emoji">😨</span>
+                                <span class="mood-label">Fear</span>
+                                <span class="mood-count">{{ mood_counts.get('fear', 0) }}</span>
+                            </div>
+                            <div class="mood-item">
+                                <span class="mood-emoji">😲</span>
+                                <span class="mood-label">Surprise</span>
+                                <span class="mood-count">{{ mood_counts.get('surprise', 0) }}</span>
+                            </div>
+                            <div class="mood-item">
+                                <span class="mood-emoji">😐</span>
+                                <span class="mood-label">Neutral</span>
+                                <span class="mood-count">{{ mood_counts.get('neutral', 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

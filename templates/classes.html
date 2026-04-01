@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Manage Classes - Smart Door Lock{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">🔐</div>
+                <div class="logo-text">
+                    <h1>SmartDoor</h1>
+                    <span>Admin Panel</span>
+                </div>
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            <a href="/dashboard" class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+            <a href="/door" class="nav-link"><span class="nav-icon">🚪</span> Door Camera</a>
+            <div class="nav-section-label">Management</div>
+            <a href="/students" class="nav-link"><span class="nav-icon">👤</span> Students</a>
+            <a href="/add_student" class="nav-link"><span class="nav-icon">➕</span> Register Student</a>
+            <a href="/classes" class="nav-link active"><span class="nav-icon">🏫</span> Classes</a>
+            <div class="nav-section-label">System</div>
+            <a href="/logs" class="nav-link"><span class="nav-icon">📋</span> Access Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/logout" class="nav-link"><span class="nav-icon">🚪</span> Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="topbar-title">
+                <h2>🏫 Class Management</h2>
+                <p>Add, view, and manage your classes</p>
+            </div>
+        </header>
+
+        <div class="page-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="grid-2">
+                <!-- Add Class Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>➕ Add New Class</h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="/classes">
+                            <div class="form-group">
+                                <label class="form-label">Class Name</label>
+                                <input type="text" name="class_name" class="form-input"
+                                       placeholder="e.g. Robotics 101, AI Lab A" required>
+                            </div>
+                            <div class="form-group" style="display:flex; gap:16px;">
+                                <div style="flex:1;">
+                                    <label class="form-label">Start Time</label>
+                                    <input type="time" name="start_time" class="form-input">
+                                </div>
+                                <div style="flex:1;">
+                                    <label class="form-label">End Time</label>
+                                    <input type="time" name="end_time" class="form-input">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Description (Optional)</label>
+                                <input type="text" name="description" class="form-input"
+                                       placeholder="e.g. Morning Robotics Session">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                ➕ Add Class
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Classes List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 All Classes</h3>
+                        <span class="badge badge-info">{{ classes|length }} total</span>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        {% if classes %}
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Class Name</th>
+                                    <th>Schedule</th>
+                                    <th>Description</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cls in classes %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td style="font-weight:600;">{{ cls.class_name }}</td>
+                                    <td>
+                                        {% if cls.start_time and cls.end_time %}
+                                        <span class="badge badge-primary" style="background:var(--accent-blue);color:#fff;">{{ cls.start_time }} - {{ cls.end_time }}</span>
+                                        {% else %}
+                                        <span class="badge" style="background:var(--bg-lighter);">No schedule</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="color:var(--text-muted); font-size:13px;">{{ cls.description or '-' }}</td>
+                                    <td>
+                                        <form method="POST" action="/classes/delete/{{ cls.id }}"
+                                              style="display:inline;"
+                                              onsubmit="return confirm('Delete this class?')">
+                                            <button type="submit" class="btn btn-danger btn-sm btn-icon"
+                                                    title="Delete">🗑️</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">🏫</div>
+                            <h4>No classes yet</h4>
+                            <p>Add your first class using the form</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

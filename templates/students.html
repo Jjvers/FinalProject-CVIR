@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Students - Smart Door Lock{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">🔐</div>
+                <div class="logo-text">
+                    <h1>SmartDoor</h1>
+                    <span>Admin Panel</span>
+                </div>
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            <a href="/dashboard" class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+            <a href="/door" class="nav-link"><span class="nav-icon">🚪</span> Door Camera</a>
+            <div class="nav-section-label">Management</div>
+            <a href="/students" class="nav-link active"><span class="nav-icon">👤</span> Students</a>
+            <a href="/add_student" class="nav-link"><span class="nav-icon">➕</span> Register Student</a>
+            <a href="/classes" class="nav-link"><span class="nav-icon">🏫</span> Classes</a>
+            <div class="nav-section-label">System</div>
+            <a href="/logs" class="nav-link"><span class="nav-icon">📋</span> Access Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/logout" class="nav-link"><span class="nav-icon">🚪</span> Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="topbar-title">
+                <h2>👤 Registered Students</h2>
+                <p>All students registered in the system</p>
+            </div>
+            <div class="topbar-actions">
+                <a href="/add_student" class="btn btn-primary btn-sm">➕ Add Student</a>
+            </div>
+        </header>
+
+        <div class="page-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 Student List</h3>
+                    <span class="badge badge-info">{{ students|length }} students</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    {% if students %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Photo</th>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Class</th>
+                                <th>Registered</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr>
+                                <td>
+                                    {% if s.face_image_path %}
+                                    <img src="/face_image/{{ s.id }}" class="face-thumb" alt="face">
+                                    {% else %}
+                                    <div class="face-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--bg-input);font-size:16px;">👤</div>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge badge-purple">{{ s.student_id }}</span></td>
+                                <td style="font-weight:600;">{{ s.name }}</td>
+                                <td><span class="badge badge-info">{{ s.class_name }}</span></td>
+                                <td style="font-size:12px; color:var(--text-muted);">{{ s.registered_at }}</td>
+                                <td>
+                                    <form method="POST" action="/students/delete/{{ s.id }}"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('Delete student {{ s.name }}?')">
+                                        <button type="submit" class="btn btn-danger btn-sm btn-icon"
+                                                title="Delete">🗑️</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">👤</div>
+                        <h4>No students registered</h4>
+                        <p>Click "Add Student" to register the first student</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

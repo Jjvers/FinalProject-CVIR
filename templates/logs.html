@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Access Logs - Smart Door Lock{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">🔐</div>
+                <div class="logo-text">
+                    <h1>SmartDoor</h1>
+                    <span>Admin Panel</span>
+                </div>
+            </a>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Main</div>
+            <a href="/dashboard" class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+            <a href="/door" class="nav-link"><span class="nav-icon">🚪</span> Door Camera</a>
+            <div class="nav-section-label">Management</div>
+            <a href="/students" class="nav-link"><span class="nav-icon">👤</span> Students</a>
+            <a href="/add_student" class="nav-link"><span class="nav-icon">➕</span> Register Student</a>
+            <a href="/classes" class="nav-link"><span class="nav-icon">🏫</span> Classes</a>
+            <div class="nav-section-label">System</div>
+            <a href="/logs" class="nav-link active"><span class="nav-icon">📋</span> Access Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="/logout" class="nav-link"><span class="nav-icon">🚪</span> Logout</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="topbar-title">
+                <h2>📋 Access Logs</h2>
+                <p>Complete history of door access attempts</p>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>🕒 All Logs</h3>
+                    <span class="badge badge-info">{{ logs|length }} entries</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    {% if logs %}
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Timestamp</th>
+                                <th>Student Name</th>
+                                <th>Class</th>
+                                <th>Detected Mood</th>
+                                <th>Status</th>
+                                <th>Door Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-muted);">
+                                    {{ log.timestamp }}
+                                </td>
+                                <td style="font-weight:600;">{{ log.student_name or 'Unknown' }}</td>
+                                <td>
+                                    {% if log.class_name %}
+                                    <span class="badge badge-info">{{ log.class_name }}</span>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.detected_mood or '-' }}</td>
+                                <td>
+                                    {% if log.status == 'Granted' %}
+                                    <span class="badge badge-success">✓ Granted</span>
+                                    {% elif log.status == 'Emergency' %}
+                                    <span class="badge badge-warning">🔥 Emergency</span>
+                                    {% else %}
+                                    <span class="badge badge-danger">✗ Denied</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.door_action == 'Opened' %}
+                                    <span style="color:var(--accent-green);">🔓 Opened</span>
+                                    {% else %}
+                                    <span style="color:var(--accent-red);">🔒 Locked</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📋</div>
+                        <h4>No access logs yet</h4>
+                        <p>Logs will appear here after students attempt door access</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

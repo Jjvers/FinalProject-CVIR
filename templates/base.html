@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Smart Door Lock System - Face Recognition & Emotion Detection">
+    <title>{% block title %}Smart Door Lock{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Fire Alert Banner -->
+    <div class="fire-alert-banner" id="fireAlertBanner">
+        🔥 EMERGENCY FIRE ALERT — ALL DOORS UNLOCKED FOR EVACUATION 🔥
+        <button class="btn btn-sm btn-ghost" onclick="deactivateFireAlarm()" style="margin-left:16px;color:#fff;border-color:#fff;">
+            Deactivate
+        </button>
+    </div>
+
+    {% block body %}{% endblock %}
+
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

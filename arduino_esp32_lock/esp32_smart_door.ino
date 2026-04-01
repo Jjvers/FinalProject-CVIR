@@ -23,46 +23,7 @@ int thresholdGas = 2000;
 bool isEmergency = false;
 bool isDoorOpen = false;
 
-// HTML 
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-<title>Smart Door Lock</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body { font-family: Arial; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
-button { padding: 15px 30px; font-size: 20px; margin: 10px; border-radius: 8px; color: white; border: none; cursor:pointer; }
-.open { background-color: #10b981; }
-.lock { background-color: #ef4444; }
-h1 { color: #333; }
-#status { font-size: 24px; font-weight: bold; margin-top: 20px; }
-</style>
-<script>
-function send(cmd){
- fetch('/'+cmd)
- .then(res=>res.text())
- .then(data=>{
-   document.getElementById("status").innerHTML=data;
- });
-}
-setInterval(()=>{
- fetch('/status')
- .then(res=>res.text())
- .then(data=>{
-   document.getElementById("status").innerHTML=data;
- });
-},2000);
-</script>
-</head>
-<body>
-<h1>Smart Door Monitor</h1>
-<button class="open" onclick="send('open')">UNLOCK DOOR</button>
-<button class="lock" onclick="send('close')">LOCK DOOR</button>
-<div id="status">Loading...</div>
-</body>
-</html>
-)rawliteral";
+
 
 // BUZZER
 void beepBuzzer(int times) {
@@ -211,10 +172,7 @@ void setup() {
   lcd.clear();
   lcd.print("Waiting 4 Scan");
 
-  // ROUTING
-  server.on("/", []() {
-    server.send(200, "text/html", index_html);
-  });
+
 
   server.on("/open", []() {
     openDoor();

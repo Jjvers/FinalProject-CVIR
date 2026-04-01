@@ -41,27 +41,24 @@ function deactivateFireAlarm() {
 
 function showFireBanner(active) {
     const banner = document.getElementById('fireAlertBanner');
-    if (banner) {
-        if (active) {
-            banner.classList.add('active');
-            document.body.style.paddingTop = '60px';
-        } else {
-            banner.classList.remove('active');
-            document.body.style.paddingTop = '0';
-        }
+    if (active) {
+        if(banner) banner.classList.add('active');
+        document.body.classList.add('fire-mode');
+    } else {
+        if(banner) banner.classList.remove('active');
+        document.body.classList.remove('fire-mode');
     }
 }
 
-// ─── Check fire alarm on page load ─────────────────────────────
+// ─── Global System Status Poller ───────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+function pollGlobalStatus() {
     fetch('/api/status')
         .then(r => r.json())
         .then(data => {
-            if (data.fire_alarm_active) {
-                showFireBanner(true);
-            }
-            // Update door status
+            showFireBanner(data.fire_alarm_active === true);
+            
+            // Update door status badge if present
             const statusText = document.getElementById('doorStatusText');
             const statusDot = document.getElementById('statusDot');
             if (statusText && data.door_state) {
@@ -70,8 +67,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (statusDot) statusDot.style.background = 'var(--accent-orange)';
                 } else {
                     statusText.textContent = 'Door: Locked';
+                    if (statusDot) statusDot.style.background = 'var(--accent-green)';
                 }
             }
         })
         .catch(() => {});
+}
+
+// Polling status background check every 2.5 seconds (Fast reaction to fire)
+setInterval(pollGlobalStatus, 2500);
+
+document.addEventListener('DOMContentLoaded', () => {
+    pollGlobalStatus();
 });

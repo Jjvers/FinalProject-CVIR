@@ -16,13 +16,6 @@
                 <span class="status-dot" id="doorDot"></span>
                 <span id="doorStateText">🔒 Door Locked</span>
             </div>
-            <select id="targetClass" class="form-select" style="width:200px;">
-                <option value="">-- Target Class --</option>
-                <option value="auto" selected>✨ Auto-Schedule (Detect via Time)</option>
-                {% for cls in classes %}
-                <option value="{{ cls.id }}" data-name="{{ cls.class_name }}">{{ cls.class_name }}</option>
-                {% endfor %}
-            </select>
             <a href="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</a>
         </div>
     </header>
@@ -54,7 +47,7 @@
                 <label style="display:none; align-items:center; gap:6px; font-size:13px; color:var(--text-secondary); cursor:pointer;" id="autoScanLabel">
                     <input type="checkbox" id="autoScanToggle" onchange="toggleAutoScan()" checked>
                     Auto-Scan every <select id="scanInterval" class="form-select" style="width:80px; padding:4px 8px; font-size:12px; display:inline-block;" onchange="restartAutoScan()">
-                        <option value="1" selected>1s (Fast)</option>
+                        <option value="2" selected>2s</option>
                         <option value="3">3s</option>
                         <option value="5">5s</option>
                         <option value="10">10s</option>
@@ -68,11 +61,11 @@
                     <h3 style="font-size:13px;">🧠 Model Info</h3>
                 </div>
                 <div class="card-body" style="padding:12px 16px; color:var(--text-muted); line-height:1.8;">
-                    <strong>Face Recognition:</strong> VGG-Face (Transfer Learning, 2.6M faces)<br>
+                    <strong>Face Recognition:</strong> Facenet (Google, 99.2% accuracy on LFW)<br>
                     <strong>Emotion Detection:</strong> <span id="emotionModelInfo">Loading...</span><br>
                     <strong>Face Detector:</strong> OpenCV Haar Cascade<br>
                     <strong>Camera:</strong> Webcam (live feed from laptop)<br>
-                    <strong>IoT Device:</strong> Arduino/RPi (MQ-2 + Servo + Buzzer + LED, via Serial)
+                    <strong>IoT Device:</strong> ESP32 (Solenoid Lock + LCD + Relay + Buzzer + LED, via Serial)
                 </div>
             </div>
         </div>
@@ -88,7 +81,7 @@
                     <div id="resultPanel" class="detection-result">
                         <div class="result-icon">🔐</div>
                         <div class="result-name">Awaiting Scan...</div>
-                        <div class="result-detail">Select a target class, start camera, and auto-scan will begin</div>
+                        <div class="result-detail">Start camera and auto-scan will begin detecting faces</div>
                     </div>
                 </div>
             </div>
@@ -120,19 +113,6 @@
         </div>
     </div>
 </div>
-
-<!-- Success Overlay Notification -->
-<div id="successOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(16, 185, 129, 0.95); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:center; color:white; animation:overlayFadeIn 0.3s ease;">
-    <div style="font-size:100px; margin-bottom:20px; animation:iconBounce 1.5s ease infinite;">✅</div>
-    <h1 style="font-size:48px; margin-bottom:16px; font-weight:700; text-align:center;">Successfully Opened!</h1>
-    <h2 id="successOverlayName" style="font-size:28px; font-weight:400; margin-bottom:20px; text-align:center;">Jane Doe</h2>
-    <div id="successOverlayMood" style="font-size:24px; background:rgba(255,255,255,0.2); padding:12px 30px; border-radius:40px; font-weight:600;">😊 Happy</div>
-</div>
-
-<style>
-@keyframes overlayFadeIn { from{opacity:0;} to{opacity:1;} }
-@keyframes iconBounce { 0%, 100% {transform:translateY(0);} 50% {transform:translateY(-20px);} }
-</style>
 {% endblock %}
 
 {% block scripts %}
@@ -177,7 +157,7 @@ function toggleAutoScan() {
 
 function startAutoScan() {
     stopAutoScan();
-    const intervalSec = parseInt(document.getElementById('scanInterval').value) || 5;
+    const intervalSec = parseInt(document.getElementById('scanInterval').value) || 3;
     document.getElementById('camStatusLabel').textContent = `AUTO-SCAN (${intervalSec}s)`;
     autoScanTimer = setInterval(() => {
         if (!isScanning) {
@@ -203,19 +183,6 @@ function restartAutoScan() {
 // ─── Scan Face ─────────────────────────────────────────────────
 
 function scanFace() {
-    const targetClassSelect = document.getElementById('targetClass');
-    const targetClassId = targetClassSelect.value;
-    const targetClassName = targetClassSelect.options[targetClassSelect.selectedIndex]?.dataset?.name || '';
-
-    if (!targetClassId) {
-        document.getElementById('resultPanel').innerHTML = `
-            <div class="result-icon">⚠️</div>
-            <div class="result-name">Select Target Class</div>
-            <div class="result-detail">Please select the target class or auto-schedule to begin scanning.</div>
-        `;
-        return;
-    }
-
     if (isScanning) return;
     isScanning = true;
 
@@ -248,9 +215,7 @@ function scanFace() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            image: dataUrl,
-            target_class_id: targetClassId,
-            target_class_name: targetClassName
+            image: dataUrl
         })
     })
     .then(r => r.json())
@@ -278,36 +243,40 @@ function showResult(data) {
     const panel = document.getElementById('resultPanel');
     const doorState = document.getElementById('doorStateText');
     const doorDot = document.getElementById('doorDot');
-    const overlay = document.getElementById('successOverlay');
 
     if (data.access === 'granted') {
         panel.className = 'detection-result success';
         panel.innerHTML = `
-            <div class="result-icon">✅</div>
-            <div class="result-name">${data.student_name}</div>
-            <div class="result-detail">
+            <div class="result-icon" style="font-size:56px;">✅</div>
+            <div class="result-name" style="font-size:24px; color:var(--accent-green);">Access Granted</div>
+            <div class="result-detail" style="font-size:16px; margin-top:8px;">
+                <strong style="font-size:20px;">${data.student_name}</strong><br>
                 ID: ${data.student_id} • Class: ${data.class_name}<br>
                 Mood: ${data.mood_emoji} ${data.mood} (${data.mood_label})
+            </div>
+            <div style="margin-top:12px; padding:8px 20px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); border-radius:12px; display:inline-block;">
+                🔓 Door Unlocked
             </div>
         `;
         doorState.textContent = '🔓 Door Unlocked';
         doorDot.className = 'status-dot';
         doorDot.style.background = 'var(--accent-green)';
         
-        // Show Big Success Overlay
-        document.getElementById('successOverlayName').textContent = data.student_name + " • " + data.class_name;
-        document.getElementById('successOverlayMood').textContent = data.mood_emoji + " Mood: " + data.mood_label;
-        overlay.style.display = 'flex';
-        
         if (unlockTimeout) clearTimeout(unlockTimeout);
         unlockTimeout = setTimeout(() => {
             doorState.textContent = '🔒 Door Locked';
             doorDot.style.background = '';
-            overlay.style.display = 'none';
+            // Update the result panel to show locked state
+            const lockMsg = panel.querySelector('div[style*="inline-block"]');
+            if (lockMsg) {
+                lockMsg.style.background = 'rgba(100,116,139,0.15)';
+                lockMsg.style.borderColor = 'rgba(100,116,139,0.3)';
+                lockMsg.textContent = '🔒 Door Auto-Locked';
+            }
         }, 5000);
     } else {
         panel.className = 'detection-result denied';
-        let reason = data.reason || 'Face not recognized or class mismatch';
+        let reason = data.reason || 'Face not recognized';
         if (data.error) reason = "System Error: " + data.error; 
         panel.innerHTML = `
             <div class="result-icon">🚫</div>
@@ -316,13 +285,6 @@ function showResult(data) {
         `;
         doorState.textContent = '🔒 Door Locked';
         doorDot.style.background = '';
-        
-        // Hide overlay aggressively if explicitly denied so it doesn't stay up falsely during movement
-        overlay.style.display = 'none';
-        if (unlockTimeout) {
-            clearTimeout(unlockTimeout);
-            unlockTimeout = null;
-        }
     }
 }
 
@@ -361,8 +323,8 @@ function addDoorLog(data) {
     }
     const now = new Date().toLocaleTimeString();
     const statusBadge = data.access === 'granted'
-        ? '<span class="badge badge-success">✓</span>'
-        : '<span class="badge badge-danger">✗</span>';
+        ? '<span class="badge badge-success">✓ Granted</span>'
+        : '<span class="badge badge-danger">✗ Denied</span>';
     const row = document.createElement('tr');
     row.innerHTML = `<td style="font-size:12px;">${now}</td><td>${data.student_name || 'Unknown'}</td><td>${data.mood_emoji || ''} ${data.mood || '-'}</td><td>${statusBadge}</td>`;
     tbody.prepend(row);

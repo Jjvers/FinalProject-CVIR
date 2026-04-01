@@ -60,16 +60,7 @@
                                 <input type="text" name="class_name" class="form-input"
                                        placeholder="e.g. Robotics 101, AI Lab A" required>
                             </div>
-                            <div class="form-group" style="display:flex; gap:16px;">
-                                <div style="flex:1;">
-                                    <label class="form-label">Start Time</label>
-                                    <input type="time" name="start_time" class="form-input">
-                                </div>
-                                <div style="flex:1;">
-                                    <label class="form-label">End Time</label>
-                                    <input type="time" name="end_time" class="form-input">
-                                </div>
-                            </div>
+                            <!-- Time schedule fields have been removed as per user request -->
                             <div class="form-group">
                                 <label class="form-label">Description (Optional)</label>
                                 <input type="text" name="description" class="form-input"
@@ -95,7 +86,6 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Class Name</th>
-                                    <th>Schedule</th>
                                     <th>Description</th>
                                     <th>Action</th>
                                 </tr>
@@ -105,13 +95,6 @@
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td style="font-weight:600;">{{ cls.class_name }}</td>
-                                    <td>
-                                        {% if cls.start_time and cls.end_time %}
-                                        <span class="badge badge-primary" style="background:var(--accent-blue);color:#fff;">{{ cls.start_time }} - {{ cls.end_time }}</span>
-                                        {% else %}
-                                        <span class="badge" style="background:var(--bg-lighter);">No schedule</span>
-                                        {% endif %}
-                                    </td>
                                     <td style="color:var(--text-muted); font-size:13px;">{{ cls.description or '-' }}</td>
                                     <td>
                                         <form method="POST" action="/classes/delete/{{ cls.id }}"

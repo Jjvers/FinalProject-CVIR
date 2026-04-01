@@ -253,32 +253,6 @@ def api_scan():
     """
     data = request.get_json()
     image_data = data.get("image", "")
-    target_class_id = data.get("target_class_id", "")
-    target_class_name = data.get("target_class_name", "")
-
-    if target_class_id == "auto":
-        now_str = datetime.now().strftime("%H:%M")
-        conn = get_db()
-        active_class = conn.execute(
-            "SELECT * FROM classes WHERE start_time <= ? AND end_time >= ? AND start_time != '' AND end_time != ''",
-            (now_str, now_str)
-        ).fetchone()
-        conn.close()
-
-        if active_class:
-            target_class_id = str(active_class["id"])
-            target_class_name = active_class["class_name"]
-        else:
-            return jsonify({
-                "access": "denied",
-                "reason": "No classes are currently scheduled at this time.",
-                "student_name": "No Active Class",
-                "mood": "-",
-                "mood_emoji": "⚠️",
-                "mood_label": "-",
-                "emotions": {}
-            })
-
     if not image_data:
         return jsonify({"error": "No image data", "access": "denied"}), 400
 
@@ -297,7 +271,7 @@ def api_scan():
     
         if result is None:
             # No face detected
-            add_access_log(None, "No face", target_class_name, "-", "Denied", "Locked")
+            add_access_log(None, "No face", "-", "-", "Denied", "Locked")
             door_controller.deny_access("No face detected")
             return jsonify({
                 "access": "denied",
@@ -335,45 +309,25 @@ def api_scan():
                 student_class = student_row["class_name"]
                 student_class_id = str(student_row["cid"])
     
-                # Check if target_class is enforced
-                if target_class_id and student_class_id != str(target_class_id):
-                    # Face recognized but wrong class
-                    door_controller.deny_access(
-                        f"{student_name} is in {student_class}, not {target_class_name}"
-                    )
-                    add_access_log(
-                        student_row["id"], student_name, student_class,
-                        f"{mood_emoji} {mood}", "Denied", "Locked"
-                    )
-                    return jsonify({
-                        "access": "denied",
-                        "reason": f"Face recognized as {student_name}, but registered in {student_class}, not {target_class_name}.",
-                        "student_name": student_name,
-                        "mood": mood,
-                        "mood_emoji": mood_emoji,
-                        "mood_label": mood_label,
-                        "emotions": emotions,
-                    })
-                else:
-                    # ACCESS GRANTED
-                    door_controller.open_door(
-                        reason=f"Face matched ({student_class})",
-                        student_name=student_name,
-                    )
-                    add_access_log(
-                        student_row["id"], student_name, student_class,
-                        f"{mood_emoji} {mood}", "Granted", "Opened"
-                    )
-                    return jsonify({
-                        "access": "granted",
-                        "student_name": student_name,
-                        "student_id": matched_student_id,
-                        "class_name": student_class,
-                        "mood": mood,
-                        "mood_emoji": mood_emoji,
-                        "mood_label": mood_label,
-                        "emotions": emotions,
-                    })
+                # ACCESS GRANTED — no class filter needed!
+                door_controller.open_door(
+                    reason=f"Face matched ({student_class})",
+                    student_name=student_name,
+                )
+                add_access_log(
+                    student_row["id"], student_name, student_class,
+                    f"{mood_emoji} {mood}", "Granted", "Opened"
+                )
+                return jsonify({
+                    "access": "granted",
+                    "student_name": student_name,
+                    "student_id": matched_student_id,
+                    "class_name": student_class,
+                    "mood": mood,
+                    "mood_emoji": mood_emoji,
+                    "mood_label": mood_label,
+                    "emotions": emotions,
+                })
             else:
                 # Face matched a folder but student not in DB
                 door_controller.deny_access("Face folder found but no DB record")
@@ -390,7 +344,7 @@ def api_scan():
         else:
             # Face detected but not recognized
             door_controller.deny_access("Face not in database")
-            add_access_log(None, "Unknown", target_class_name, f"{mood_emoji} {mood}", "Denied", "Locked")
+            add_access_log(None, "Unknown", "-", f"{mood_emoji} {mood}", "Denied", "Locked")
             return jsonify({
                 "access": "denied",
                 "reason": "Face not recognized. This person is not registered.",

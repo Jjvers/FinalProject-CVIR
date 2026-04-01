@@ -207,9 +207,9 @@ def recognize_face(frame):
     fw = int(w_s / ratio)
     fh = int(h_s / ratio)
     
-    # Pad the crop slightly for better DeepFace/Emotion results
-    pad_x = int(fw * 0.1)
-    pad_y = int(fh * 0.1)
+    # Pad the crop more generously (20%) so DeepFace's OpenCV detector can properly align it
+    pad_x = int(fw * 0.2)
+    pad_y = int(fh * 0.2)
     x1 = max(0, x - pad_x)
     y1 = max(0, y - pad_y)
     x2 = min(w, x + fw + pad_x)
@@ -263,12 +263,12 @@ def recognize_face(frame):
         }
 
     try:
-        # We pass the FULL FRAME and use "opencv" detector so DeepFace does PROPER alignment
-        # (Alignment dramatically increases VGG-Face accuracy!)
+        # We pass the CROPPED face to DeepFace to eliminate background noise.
+        # This dramatically increases the chance Haar Cascade inside DeepFace succeeds!
         results = DeepFace.find(
-            img_path=frame,
+            img_path=face_crop,
             db_path=DATASET_DIR,
-            model_name="VGG-Face",
+            model_name="Facenet",
             enforce_detection=False,
             detector_backend="opencv",
             silent=True,

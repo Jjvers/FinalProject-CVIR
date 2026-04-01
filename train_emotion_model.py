@@ -467,6 +467,43 @@ def build_transfer_learning_model():
 # STEP 3: TRAINING
 # ═══════════════════════════════════════════════════════════════════
 
+class LiveTrainingPlot(callbacks.Callback):
+    def __init__(self, model_name):
+        super().__init__()
+        self.model_name = model_name
+        self.history = {'accuracy': [], 'val_accuracy': [], 'loss': [], 'val_loss': []}
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        for metric in self.history.keys():
+            if metric in logs:
+                self.history[metric].append(logs[metric])
+        
+        # Plot and save
+        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+        axes[0].plot(self.history['accuracy'], label='Train', linewidth=2, color='#3b82f6')
+        if 'val_accuracy' in logs:
+            axes[0].plot(self.history['val_accuracy'], label='Validation', linewidth=2, color='#ef4444')
+        axes[0].set_title(f'Live Accuracy — {self.model_name}', fontsize=14, fontweight='bold')
+        axes[0].set_xlabel('Epoch')
+        axes[0].set_ylabel('Accuracy')
+        axes[0].legend(fontsize=11)
+        axes[0].grid(True, alpha=0.3)
+
+        axes[1].plot(self.history['loss'], label='Train', linewidth=2, color='#3b82f6')
+        if 'val_loss' in logs:
+            axes[1].plot(self.history['val_loss'], label='Validation', linewidth=2, color='#ef4444')
+        axes[1].set_title(f'Live Loss — {self.model_name}', fontsize=14, fontweight='bold')
+        axes[1].set_xlabel('Epoch')
+        axes[1].set_ylabel('Loss')
+        axes[1].legend(fontsize=11)
+        axes[1].grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        hist_path = os.path.join(RESULTS_DIR, f"live_history_{self.model_name}.png")
+        plt.savefig(hist_path, dpi=150)
+        plt.close(fig)
+
 def train_model(model, train_gen, val_gen, model_name, epochs=EPOCHS):
     """
     Train model with advanced callbacks.
@@ -494,6 +531,7 @@ def train_model(model, train_gen, val_gen, model_name, epochs=EPOCHS):
             best_path, monitor='val_accuracy',
             save_best_only=True, verbose=1
         ),
+        LiveTrainingPlot(model_name)
     ]
 
     history = model.fit(

@@ -1107,3 +1107,45 @@ body::before {
 .flex-center { display: flex; align-items: center; justify-content: center; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
 .w-full { width: 100%; }
+
+
+/* --- FIRE EMERGENCY MODE -------------------------------------- */
+
+body.fire-mode {
+    animation: firePulse 1.5s ease-in-out infinite alternate !important;
+}
+
+@keyframes firePulse {
+    0% { background: var(--bg-primary); }
+    100% { background: #350000; }
+}
+
+body.fire-mode * {
+    border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+body.fire-mode .app-container {
+    box-shadow: inset 0 0 150px rgba(239, 68, 68, 0.6) !important;
+}
+
+body.fire-mode .card, body.fire-mode .sidebar, body.fire-mode .topbar {
+    background: rgba(42, 8, 8, 0.8) !important;
+    backdrop-filter: blur(10px);
+}
+
+body.fire-mode h1, body.fire-mode h2, body.fire-mode h3, body.fire-mode .nav-link {
+    color: #ffcccc !important;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.8) !important;
+}
+
+body.fire-mode .status-dot, body.fire-mode .logo-icon {
+    background: var(--accent-red) !important;
+    animation: pulse-dot-danger 0.5s ease-in-out infinite !important;
+    box-shadow: var(--shadow-glow-red) !important;
+}
+
+body.fire-mode .btn-primary, body.fire-mode .btn-success {
+    background: var(--gradient-danger) !important;
+    box-shadow: var(--shadow-glow-red) !important;
+}
+

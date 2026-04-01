@@ -28,6 +28,8 @@ calls with actual GPIO commands (RPi.GPIO or gpiozero library).
 """
 
 import time
+import serial
+import threading
 from datetime import datetime
 
 
@@ -49,13 +51,23 @@ class DoorController:
     MQ2_DIGITAL_PIN = 25
     MQ2_THRESHOLD = 400  # Analog threshold for smoke detection
 
-    def __init__(self):
+    def __init__(self, port="COM3", baudrate=115200):
         self.door_state = "LOCKED"
         self.fire_alarm_active = False
         self.buzzer_active = False
         self.led_blinking = False
         self.mq2_last_reading = 0
         self.logs = []
+        self.port = port
+        
+        # Try to connect to ESP32 via Serial
+        self.serial_conn = None
+        try:
+            self.serial_conn = serial.Serial(port, baudrate, timeout=1)
+            time.sleep(2) # Give ESP32 time to reboot after connection
+            self._log(f"✅ SERIAL CONNECTED: Hardware link established on {port}")
+        except serial.SerialException as e:
+            self._log(f"⚠️ SERIAL WARNING: Cannot connect to ESP32 on {port}. Running in Simulation Mode.")
 
     def _log(self, message):
         """Internal logging with timestamp."""
@@ -81,6 +93,21 @@ class DoorController:
             msg += f" for {student_name}"
         if reason:
             msg += f" | Reason: {reason}"
+            
+        # Send Serial command to ESP32
+        if self.serial_conn:
+            try:
+                # Based on user request, sending exactly 'open'
+                # Or 'open|Name|Mood' for LCD support
+                cmd = f"open\n"
+                if student_name:
+                    # Guessing mood is Happy for now, as it's passed differently in original code
+                    # But doing simple open per user request "open lock aja ganti code nya"
+                    cmd = f"open|{student_name}|\n" 
+                self.serial_conn.write(cmd.encode('utf-8'))
+            except Exception as e:
+                self._log(f"Serial Write Error: {e}")
+
         self._log(msg)
         self._log("⏳ Door will auto-lock in 5 seconds (Servo → 0°)")
         return True
@@ -91,6 +118,13 @@ class DoorController:
         Real hardware: servo.ChangeDutyCycle(2.5)  # 0 degrees = locked
         """
         self.door_state = "LOCKED"
+        
+        if self.serial_conn:
+            try:
+                self.serial_conn.write(b"lock\n")
+            except Exception as e:
+                self._log(f"Serial Write Error: {e}")
+                
         self._log("🔒 DOOR LOCKED (Servo → 0°)")
         return True
 
@@ -112,6 +146,14 @@ class DoorController:
         msg = f"🚫 ACCESS DENIED"
         if reason:
             msg += f" | Reason: {reason}"
+            
+        if self.serial_conn:
+            try:
+                cmd = f"lock|{reason}\n"
+                self.serial_conn.write(cmd.encode('utf-8'))
+            except Exception as e:
+                self._log(f"Serial Write Error: {e}")
+                
         self._log(msg)
         self._log("🔴 Red LED blinking 3x + Buzzer short beep")
         return False

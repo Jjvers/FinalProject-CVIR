@@ -28,7 +28,7 @@ calls with actual GPIO commands (RPi.GPIO or gpiozero library).
 """
 
 import time
-import serial
+import requests
 import threading
 from datetime import datetime
 
@@ -51,23 +51,21 @@ class DoorController:
     MQ2_DIGITAL_PIN = 25
     MQ2_THRESHOLD = 400  # Analog threshold for smoke detection
 
-    def __init__(self, port="COM3", baudrate=115200):
+    def __init__(self, esp_ip="192.168.1.5"):
         self.door_state = "LOCKED"
         self.fire_alarm_active = False
         self.buzzer_active = False
         self.led_blinking = False
         self.mq2_last_reading = 0
         self.logs = []
-        self.port = port
+        self.esp_ip = esp_ip
         
-        # Try to connect to ESP32 via Serial
-        self.serial_conn = None
+        # Test Wi-Fi Connection
         try:
-            self.serial_conn = serial.Serial(port, baudrate, timeout=1)
-            time.sleep(2) # Give ESP32 time to reboot after connection
-            self._log(f"✅ SERIAL CONNECTED: Hardware link established on {port}")
-        except serial.SerialException as e:
-            self._log(f"⚠️ SERIAL WARNING: Cannot connect to ESP32 on {port}. Running in Simulation Mode.")
+            res = requests.get(f"http://{esp_ip}/status", timeout=2)
+            self._log(f"✅ Wi-Fi CONNECTED: Hardware link established at {esp_ip} (Status: {res.text})")
+        except Exception as e:
+            self._log(f"⚠️ Wi-Fi WARNING: Cannot connect to ESP32 on {esp_ip}. Running in Simulation Mode.")
 
     def _log(self, message):
         """Internal logging with timestamp."""
@@ -94,15 +92,17 @@ class DoorController:
         if reason:
             msg += f" | Reason: {reason}"
             
-        # Send Serial command to ESP32
-        if self.serial_conn:
-            try:
-                cmd = f"open\n"
-                if student_name:
-                    cmd = f"open|{student_name}|{mood}|{student_id}\n" 
-                self.serial_conn.write(cmd.encode('utf-8'))
-            except Exception as e:
-                self._log(f"Serial Write Error: {e}")
+        # Send Wi-Fi command to ESP32
+        try:
+            url = f"http://{self.esp_ip}/open"
+            params = {}
+            if student_name: params["name"] = student_name
+            if mood: params["mood"] = mood
+            if student_id: params["id"] = student_id
+            
+            requests.get(url, params=params, timeout=2)
+        except Exception as e:
+            self._log(f"Network Write Error: {e}")
 
         self._log(msg)
         self._log("⏳ Door will auto-lock in 5 seconds (Servo → 0°)")
@@ -115,11 +115,10 @@ class DoorController:
         """
         self.door_state = "LOCKED"
         
-        if self.serial_conn:
-            try:
-                self.serial_conn.write(b"lock\n")
-            except Exception as e:
-                self._log(f"Serial Write Error: {e}")
+        try:
+            requests.get(f"http://{self.esp_ip}/close", timeout=2)
+        except Exception as e:
+            self._log(f"Network Write Error: {e}")
                 
         self._log("🔒 DOOR LOCKED (Servo → 0°)")
         return True
@@ -143,12 +142,12 @@ class DoorController:
         if reason:
             msg += f" | Reason: {reason}"
             
-        if self.serial_conn:
-            try:
-                cmd = f"lock|{reason}\n"
-                self.serial_conn.write(cmd.encode('utf-8'))
-            except Exception as e:
-                self._log(f"Serial Write Error: {e}")
+        try:
+            url = f"http://{self.esp_ip}/close"
+            params = {"reason": reason} if reason else {}
+            requests.get(url, params=params, timeout=2)
+        except Exception as e:
+            self._log(f"Network Write Error: {e}")
                 
         self._log(msg)
         self._log("🔴 Red LED blinking 3x + Buzzer short beep")

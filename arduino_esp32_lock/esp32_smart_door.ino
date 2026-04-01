@@ -188,13 +188,21 @@ void setup() {
 
 
 
+  server.on("/status", []() {
+    server.send(200, "text/plain", "READY");
+  });
+
   server.on("/open", []() {
-    openDoor();
+    String sName = server.hasArg("name") ? server.arg("name") : "Web Dashboard";
+    String sMood = server.hasArg("mood") ? server.arg("mood") : "";
+    String sId = server.hasArg("id") ? server.arg("id") : "";
+    openDoor(sName, sMood, sId);
     server.send(200, "text/plain", "OPEN");
   });
 
   server.on("/close", []() {
-    closeDoor();
+    String reason = server.hasArg("reason") ? server.arg("reason") : "";
+    closeDoor(reason);
     server.send(200, "text/plain", "LOCKED");
   });
 
@@ -211,48 +219,8 @@ void setup() {
 void loop() {
   server.handleClient();
 
-  // Python Laptop Serial Control
-  // Listens via USB cable from your laptop running the face tracking
-  if (Serial.available() && !isEmergency) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    
-    // Command formats expected from python:
-    // "open|Johana|Happy|10113" 
-    // "lock|No face detected"
-    // "lock"
-    
-    int firstDivider = cmd.indexOf('|');
-    if (firstDivider != -1) {
-       String action = cmd.substring(0, firstDivider);
-       String remainder = cmd.substring(firstDivider + 1);
-       
-       if (action == "open") {
-          int secondDivider = remainder.indexOf('|');
-          if (secondDivider != -1) {
-              String sName = remainder.substring(0, secondDivider);
-              String rem2 = remainder.substring(secondDivider + 1);
-              
-              int thirdDivider = rem2.indexOf('|');
-              if (thirdDivider != -1) {
-                  String sMood = rem2.substring(0, thirdDivider);
-                  String sId = rem2.substring(thirdDivider + 1);
-                  openDoor(sName, sMood, sId); 
-              } else {
-                  openDoor(sName, rem2); 
-              }
-          } else {
-              openDoor(remainder); 
-          }
-       } else if (action == "lock") {
-          closeDoor(remainder); // remainder = Error reason
-       }
-    } else {
-       // Backup flat commands like original
-       if (cmd == "open") openDoor();
-       if (cmd == "lock") closeDoor();
-    }
-  }
+  // Hardware is now fully untethered.
+  // We no longer read from USB Serial. All communication is done via Wi-Fi (HTTP).
 
   // MQ2 Gas Sensor Control
   if (!isEmergency) {

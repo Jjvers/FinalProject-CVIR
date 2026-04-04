@@ -55,6 +55,10 @@
                 <p>Monitor your smart door lock system</p>
             </div>
             <div class="topbar-actions">
+                <div class="status-indicator" style="background:var(--bg-input); font-family:monospace; font-size:13px; color:var(--text-secondary); padding:6px 12px; gap:8px;">
+                    <span>🕒</span>
+                    <span id="realtimeClock">--:--:--</span>
+                </div>
                 <div class="status-indicator" id="doorStatus">
                     <span class="status-dot" id="statusDot"></span>
                     <span id="doorStatusText">Door: Locked</span>
@@ -197,4 +201,21 @@
         </div>
     </main>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateClock() {
+    const now = new Date();
+    const clockEl = document.getElementById('realtimeClock');
+    if (clockEl) {
+        clockEl.textContent = now.toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+        });
+    }
+}
+setInterval(updateClock, 1000);
+updateClock();
+</script>
 {% endblock %}

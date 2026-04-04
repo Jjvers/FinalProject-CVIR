@@ -43,7 +43,7 @@ void openDoor(String studentName = "Web Dashboard", String mood = "", String stu
   isDoorOpen = true;
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Assuming HIGH unlocks the solenoid
+  digitalWrite(RELAY_PIN, LOW); // LOW triggers the Active-LOW relay to unlock
 
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_GREEN, HIGH);
@@ -84,7 +84,7 @@ void closeDoor(String reason = "") {
   isDoorOpen = false;
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // Lock solenoid
+  digitalWrite(RELAY_PIN, HIGH); // HIGH turns relay off (Locked)
 
   digitalWrite(LED_RED, HIGH);
   digitalWrite(LED_GREEN, LOW);
@@ -100,7 +100,7 @@ void closeDoor(String reason = "") {
   } else {
     lcd.print("Door Locked");
     lcd.setCursor(0, 1);
-    lcd.print("Waiting 4 Scan");
+    lcd.print("Waiting For Scan");
     beepBuzzer(1); // Normal lock beep
   }
 }
@@ -113,7 +113,7 @@ void triggerEmergency() {
   isDoorOpen = true;
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Unlock Door for safety
+  digitalWrite(RELAY_PIN, LOW); // Unlock Door for safety (Active-LOW)
   
   digitalWrite(LED_RED, HIGH);
   digitalWrite(LED_GREEN, LOW);
@@ -153,7 +153,7 @@ void setup() {
   
   // Initial lock state
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH); // Default state: Locked (Relay OFF)
 
   digitalWrite(LED_RED, HIGH);
   digitalWrite(LED_GREEN, LOW);
@@ -184,13 +184,7 @@ void setup() {
   delay(3000);
 
   lcd.clear();
-  lcd.print("Waiting 4 Scan");
-
-
-
-  server.on("/status", []() {
-    server.send(200, "text/plain", "READY");
-  });
+  lcd.print("Waiting For Scan");
 
   server.on("/open", []() {
     String sName = server.hasArg("name") ? server.arg("name") : "Web Dashboard";

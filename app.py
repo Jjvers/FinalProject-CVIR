@@ -216,9 +216,22 @@ def delete_student_route(student_db_id):
 @app.route("/face_image/<int:student_db_id>")
 def face_image(student_db_id):
     """Serve a student's face image."""
+    from recognition_engine import DATASET_DIR
     student = get_student_by_id(student_db_id)
-    if student and student["face_image_path"] and os.path.exists(student["face_image_path"]):
-        return send_file(student["face_image_path"], mimetype="image/jpeg")
+    if student and student["face_image_path"]:
+        db_path = student["face_image_path"]
+        if os.path.exists(db_path):
+            return send_file(db_path, mimetype="image/jpeg")
+            
+        # Fallback: dynamically rebuild the path relative to the current DATASET_DIR.
+        # This handles the case where the project folder was moved from another PC.
+        base_name = os.path.basename(db_path)
+        dir_name = os.path.basename(os.path.dirname(db_path))
+        fallback_path = os.path.join(DATASET_DIR, dir_name, base_name)
+        
+        if os.path.exists(fallback_path):
+            return send_file(fallback_path, mimetype="image/jpeg")
+            
     return "", 404
 
 

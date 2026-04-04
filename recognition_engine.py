@@ -32,14 +32,21 @@ from deepface import DeepFace
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 MODEL_DIR = os.path.join(BASE_DIR, "trained_models")
+
+# Search order: trained_models/ first, then root directory (fallback)
 CUSTOM_MODEL_PATH = os.path.join(MODEL_DIR, "emotion_model.keras")
 CUSTOM_MODEL_H5_PATH = os.path.join(MODEL_DIR, "emotion_model.h5")
+CUSTOM_MODEL_PATH_ROOT = os.path.join(BASE_DIR, "emotion_model.keras")
+CUSTOM_MODEL_H5_PATH_ROOT = os.path.join(BASE_DIR, "emotion_model.h5")
 
 os.makedirs(DATASET_DIR, exist_ok=True)
 
-# ─── Emotion labels (must match training order) ────────────────
+# ─── Emotion labels — must match ImageDataGenerator alphabetical sort order ───
+# ImageDataGenerator.flow_from_directory sorts class folders alphabetically:
+#   Index: 0=angry  1=disgust  2=fear  3=happy  4=neutral  5=sad  6=surprise
+# (NOT the FER2013 paper order — neutral is index 4, not 6)
 
-EMOTION_LABELS = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
+EMOTION_LABELS = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 # ─── Load custom emotion model if available ─────────────────────
 
@@ -48,34 +55,81 @@ _using_custom_model = False
 
 
 def _load_custom_model():
-    """Load our custom-trained emotion detection CNN model."""
+    """Load the custom-trained emotion detection CNN model.
+
+    Search order for model file:
+      1. trained_models/emotion_model.keras
+      2. trained_models/emotion_model.h5
+      3. emotion_model.keras  (root directory fallback)
+      4. emotion_model.h5     (root directory fallback)
+
+    Compatibility note:
+      Models saved with different Keras sub-versions may include
+      unknown layer config keys (e.g. 'quantization_config').
+      CompatDense silently drops those unknown kwargs on load.
+    """
     global _custom_emotion_model, _using_custom_model
-    
+
     if _custom_emotion_model is not None:
         return _custom_emotion_model
-    
-    model_path = None
-    if os.path.exists(CUSTOM_MODEL_PATH):
-        model_path = CUSTOM_MODEL_PATH
-    elif os.path.exists(CUSTOM_MODEL_H5_PATH):
-        model_path = CUSTOM_MODEL_H5_PATH
-    
-    if model_path:
-        try:
-            from tensorflow import keras
-            _custom_emotion_model = keras.models.load_model(model_path)
-            _using_custom_model = True
-            print(f"✅ Custom emotion model loaded from: {model_path}")
-            return _custom_emotion_model
-        except Exception as e:
-            print(f"⚠️  Failed to load custom model: {e}")
-            print("   Falling back to DeepFace emotion analysis.")
-            _using_custom_model = False
-    else:
+
+    # Find model file — check trained_models/ first, then root dir
+    candidates = [
+        CUSTOM_MODEL_PATH,
+        CUSTOM_MODEL_H5_PATH,
+        CUSTOM_MODEL_PATH_ROOT,
+        CUSTOM_MODEL_H5_PATH_ROOT,
+    ]
+    model_path = next((p for p in candidates if os.path.exists(p)), None)
+
+    if not model_path:
         print("ℹ️  No custom emotion model found. Using DeepFace.")
-        print(f"   Train one with: python train_emotion_model.py")
+        print(f"   Expected: {CUSTOM_MODEL_PATH}")
+        print(f"   Or place emotion_model.keras in the project root folder.")
         _using_custom_model = False
-    
+        return None
+
+    from tensorflow import keras
+    import keras as keras_core
+
+    # Monkey-patch Dense.__init__ globally before deserialization so that
+    # Sequential models saved with a slightly different Keras version (which
+    # serializes 'quantization_config': null into every Dense layer config)
+    # can be loaded without errors.
+    _orig_dense_init = keras_core.layers.Dense.__init__
+
+    def _compat_dense_init(self, *args, **kwargs):
+        kwargs.pop('quantization_config', None)
+        _orig_dense_init(self, *args, **kwargs)
+
+    keras_core.layers.Dense.__init__ = _compat_dense_init
+
+    loaded = None
+    for attempt, path in enumerate([model_path], start=1):
+        try:
+            loaded = keras.models.load_model(path, compile=False)
+            print(f"✅ Custom emotion model loaded: {os.path.basename(path)}")
+            break
+        except Exception as e:
+            print(f"⚠️  Load failed (attempt {attempt}): {type(e).__name__}: {str(e)[:120]}")
+
+    # Restore original Dense.__init__ to avoid side effects elsewhere
+    keras_core.layers.Dense.__init__ = _orig_dense_init
+
+    if loaded is not None:
+        loaded.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        _custom_emotion_model = loaded
+        _using_custom_model = True
+        print(f"   Input shape  : {_custom_emotion_model.input_shape}")
+        print(f"   Output shape : {_custom_emotion_model.output_shape}")
+        return _custom_emotion_model
+
+    print("⚠️  Failed to load model. Falling back to DeepFace emotion analysis.")
+    _using_custom_model = False
     return None
 
 
@@ -335,17 +389,17 @@ def get_emotion_emoji(emotion):
 
 
 def get_emotion_label_id(emotion):
-    """Return a human-friendly Indonesian label for an emotion."""
+    """Return a human-friendly label for an emotion."""
     label_map = {
-        "happy": "Senang",
-        "sad": "Sedih",
-        "angry": "Marah",
-        "surprise": "Terkejut",
-        "fear": "Cemas / Takut",
-        "disgust": "Jijik",
-        "neutral": "Netral",
+        "happy": "Happy",
+        "sad": "Sad",
+        "angry": "Angry",
+        "surprise": "Surprised",
+        "fear": "Fearful",
+        "disgust": "Disgusted",
+        "neutral": "Neutral",
     }
-    return label_map.get(emotion, emotion)
+    return label_map.get(emotion, emotion.capitalize())
 
 
 def get_model_info():

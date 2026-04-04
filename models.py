@@ -45,7 +45,7 @@ def init_db():
             name TEXT NOT NULL,
             class_id INTEGER NOT NULL,
             face_image_path TEXT,
-            registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            registered_at TIMESTAMP DEFAULT (datetime('now','localtime')),
             FOREIGN KEY (class_id) REFERENCES classes(id)
         )
     """)
@@ -192,9 +192,15 @@ def get_students_by_class(class_id):
 
 def delete_student(student_db_id):
     conn = get_db()
+    
+    # 1. Delete dependent access logs to prevent FOREIGN KEY constraint error
+    conn.execute("DELETE FROM access_logs WHERE student_id = ?", (student_db_id,))
+    
+    # 2. Delete main student record and face photo
     student = conn.execute("SELECT face_image_path FROM students WHERE id = ?", (student_db_id,)).fetchone()
     if student and student["face_image_path"] and os.path.exists(student["face_image_path"]):
         os.remove(student["face_image_path"])
+        
     conn.execute("DELETE FROM students WHERE id = ?", (student_db_id,))
     conn.commit()
     conn.close()
@@ -204,11 +210,12 @@ def delete_student(student_db_id):
 
 def add_access_log(student_id, student_name, class_name, detected_mood, status, door_action):
     conn = get_db()
+    local_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
         """INSERT INTO access_logs
-           (student_id, student_name, class_name, detected_mood, status, door_action)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (student_id, student_name, class_name, detected_mood, status, door_action),
+           (student_id, student_name, class_name, detected_mood, status, door_action, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (student_id, student_name, class_name, detected_mood, status, door_action, local_time),
     )
     conn.commit()
     conn.close()
@@ -227,9 +234,10 @@ def get_access_logs(limit=50):
 
 def add_alert(alert_type, message):
     conn = get_db()
+    local_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     conn.execute(
-        "INSERT INTO alerts (alert_type, message) VALUES (?, ?)",
-        (alert_type, message),
+        "INSERT INTO alerts (alert_type, message, triggered_at) VALUES (?, ?, ?)",
+        (alert_type, message, local_time),
     )
     conn.commit()
     conn.close()

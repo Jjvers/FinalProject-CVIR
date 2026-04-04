@@ -51,7 +51,7 @@ class DoorController:
     MQ2_DIGITAL_PIN = 25
     MQ2_THRESHOLD = 400  # Analog threshold for smoke detection
 
-    def __init__(self, esp_ip="192.168.1.5"):
+    def __init__(self, port="COM3", baudrate=115200):
         self.door_state = "LOCKED"
         self.fire_alarm_active = False
         self.buzzer_active = False
